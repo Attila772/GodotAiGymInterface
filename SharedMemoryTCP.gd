@@ -4,12 +4,15 @@ var wrapped_client : PacketPeerStream
 var connected = false
 var should_connect = false
 var SharedTcpDataDict : Dictionary
+var counter = 0
+var json
 
-# Called when the node enters the scene tree for the first time.
+
 func _ready():
 	client = StreamPeerTCP.new()
 	client.set_no_delay(true)
-	pass # Replace with function body.
+	connect_to_server(5)
+	pass 
 
 func _process(delta):
 	if should_connect and not connected:
@@ -18,16 +21,15 @@ func _process(delta):
 		connected = false
 	if client.is_connected_to_host():
 		synchronise()
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-#func _process(delta):
-#	pass
+
 
 func connect_to_server(timeout_seconds):
 	set_process(true)
 	should_connect = true
 	var ip = "127.0.0.1"
-	var port = 8080
+	var port = 8000
 	var connect = client.connect_to_host(ip, port)
+	
 	if client.is_connected_to_host():
 		connected = true
 		wrapped_client = PacketPeerStream.new()
@@ -40,45 +42,54 @@ func disconnect_from_server():
 
 func synchronise():	
 	while client.get_available_bytes() > 0:
-		print(client.get_string(client.get_available_bytes()))
-		var msg = client.get_string(client.get_available_bytes())
-		var split = msg.split(",")
-		var command = split[0]
-		var key = split[1]
-		var value = split[2]
-		match command:
-			"cmd":
-				pass
-			"set":
-				var parsed = parse_value(split)
-				SharedTcpDataDict[key] = parsed
+		counter+=1
+		var rcv = client.get_available_bytes()
+		var str_rcv = client.get_string(rcv)
+		var data = null
+		
+		if(str_rcv.split("}{").size()>1):
 			
-		print(msg)
-		var error = wrapped_client.get_packet_error()
-		if msg == null:
-			continue;
+			data = JSON.parse(str_rcv.split("}{")[0]+"}")
+		else:
+			data = JSON.parse(str_rcv)
+		
+		if(data.result != null):
+			json = data.result["tensor"]
+		
+		
+			
+func send_test_data():
+			send_var("set-"+str(SharedTcpDataDict.keys()[0])+"-"+str(SharedTcpDataDict[SharedTcpDataDict.keys()[0]]) )
+
+func send_all():
+	for key in SharedTcpDataDict:
+		var msg = "set-" + key + "-"+ str(SharedTcpDataDict[key]) 
+		send_var(msg)
+
+		
+		pass
 		
 		
 func send_var(msg):
 	if client.is_connected_to_host():
-		print(msg)
 		wrapped_client.put_var(msg)
 		
 func convert_str_to_array(string):
+	string = string.replace("[","").replace("]","").replace("}","").replace("{","")
+	var split = string.split(",")
+	var parsed = []
+	var key =""
+	for a in split:
+		if len(a.split(":"))>1:
+			key = a.split(":")[0]
+			key = key.replace(" ","")
+			key = key.replace("\'","")
+			var val = a.split(":")[1]
+			
+			val = val.replace(" ","")
+			SharedTcpDataDict[key] =[]
+			SharedTcpDataDict[key].append(val)
+		else:
+			SharedTcpDataDict[key].append(a)
+	return
 	pass
-
-func parse_value(split):
-	var typetmp = typeof(SharedTcpDataDict[split[1]])
-	match typetmp:
-					TYPE_NIL:
-						return null
-					TYPE_BOOL:
-						return bool(split[2])
-					TYPE_INT:
-						return int(split[2])
-					TYPE_REAL:
-						return float(split[2])
-					TYPE_STRING:
-						return str(split[2])
-					TYPE_ARRAY:
-						return convert_str_to_array(split[2])
