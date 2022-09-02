@@ -1,15 +1,20 @@
 from SharedMemoryTCP import SharedMemoryTCP
 import time
-import ctypes
+
 
 import random
 
 
 
+def example():
+    pass
+
 
 
 SharedMem = SharedMemoryTCP()
+SharedMem.onAfterRecieve = example
 SharedMem.start()
+
 while True:
     #random float
     rand_float = random.uniform(0.0,1.0)

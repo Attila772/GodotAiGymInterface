@@ -3,12 +3,13 @@ from multiprocessing.sharedctypes import Value
 from sqlite3 import connect
 import threading
 import ctypes
-
 import socket
+
+
 kernel32 = ctypes.windll.kernel32
 kernel32.SetThreadPriority(kernel32.GetCurrentThread(), 31)
 timer = kernel32.CreateWaitableTimerA(ctypes.c_void_p(), True, ctypes.c_void_p())
-delay = ctypes.c_longlong(10000000)
+delay = ctypes.c_longlong(1000000)
 kernel32.SetWaitableTimer(timer, ctypes.byref(delay), 0, ctypes.c_void_p(), ctypes.c_void_p(), False)
 
 class SharedMemoryTCP():
@@ -49,9 +50,7 @@ class SharedMemoryTCP():
                     
             
     def set_var(self,name,value):
-       
         kernel32.WaitForSingleObject(timer, 0xffffffff)
-        
         self.data[name] = value
         jsontosend = self.data
         jsontosend["cmd"] = "set"
